@@ -25,7 +25,8 @@ node_modules/
 .env.*
 
 # Rust build output
-/dex-listener/target
+/dex-indexer/target
+/dex-api/target
 
 # Dashboard build output
 /dashboard/dist

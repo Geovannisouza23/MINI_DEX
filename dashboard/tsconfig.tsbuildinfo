@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/ConnectWallet.tsx","./src/components/SwapForm.tsx","./src/components/TokenBalances.tsx","./src/hooks/WalletProvider.tsx","./src/hooks/useWallet.ts","./src/services/web3.ts","./src/web3/constants.ts"],"version":"5.8.3"}

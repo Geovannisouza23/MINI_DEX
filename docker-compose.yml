@@ -4,6 +4,7 @@ services:
   postgres:
     image: postgres:16
     container_name: mini-dex-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -12,6 +13,45 @@ services:
       POSTGRES_DB: mini_dex
     volumes:
       - mini_dex_pg:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mini_dex"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dex-indexer:
+    build: ./dex-indexer
+    container_name: mini-dex-indexer
+    restart: unless-stopped
+    env_file:
+      - ./dex-indexer/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  dex-api:
+    build: ./dex-api
+    container_name: mini-dex-api
+    restart: unless-stopped
+    env_file:
+      - ./dex-api/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+
+  dashboard:
+    build: ./dashboard
+    container_name: mini-dex-dashboard
+    restart: unless-stopped
+    env_file:
+      - ./dashboard/.env
+    depends_on:
+      - dex-api
+    ports:
+      - "5173:5173"
 
 volumes:
   mini_dex_pg:
