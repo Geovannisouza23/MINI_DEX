@@ -1,4 +1,5 @@
 export type SwapRow = {
+  id?: number;
   tx_hash: string;
   log_index: number;
   block_number: number;

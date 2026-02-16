@@ -1,0 +1,9 @@
+mkdir -p ~/.docker
+cat > ~/.docker/config.json <<'EOF'
+{
+  "auths": {},
+  "credsStore": ""
+}
+EOF
+
+printf '%s' 'Ge05281310' | docker login --username geovannimatos.dev@gmail.com --password-stdin

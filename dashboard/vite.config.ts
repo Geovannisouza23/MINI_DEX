@@ -5,5 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: "0.0.0.0",
+    hmr: {
+      host: "localhost",
+      clientPort: 5173,
+      protocol: "ws",
+    },
   },
 });
