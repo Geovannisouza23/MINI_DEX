@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserProvider, type Eip1193Provider } from "ethers";
-import { EthereumProvider } from "@walletconnect/ethereum-provider";
 import { formatBalance, getBalance, getNetworkInfo } from "../services/web3";
 
 const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
@@ -8,7 +7,12 @@ const RPC_URL = import.meta.env.VITE_RPC_URL || "https://rpc.sepolia.org";
 const SEPOLIA_CHAIN_ID = "0xaa36a7";
 const SEPOLIA_ID = 11155111;
 const CONNECTOR_KEY = "mini_dex_connector";
-type WalletConnectProvider = InstanceType<typeof EthereumProvider>;
+type WalletConnectProvider = Eip1193Provider & {
+  connect: () => Promise<void>;
+  disconnect?: () => Promise<void>;
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+  session?: unknown;
+};
 
 let wcInitPromise: Promise<WalletConnectProvider> | null = null;
 let reconnecting = false;
@@ -41,22 +45,23 @@ const buildWalletConnectProvider = async () => {
   }
 
   if (!wcInitPromise) {
+    const { EthereumProvider } = await import("@walletconnect/ethereum-provider");
     wcInitPromise = EthereumProvider.init({
-    projectId: WALLETCONNECT_PROJECT_ID,
-    chains: [SEPOLIA_ID],
-    rpcMap: {
-      [SEPOLIA_ID]: RPC_URL,
-    },
-    showQrModal: true,
-    methods: ["eth_requestAccounts", "eth_sendTransaction", "personal_sign"],
-    events: ["accountsChanged", "chainChanged", "disconnect"],
-    metadata: {
-      name: "Mini DEX Pulse",
-      description: "Simple on-chain swap dashboard",
-      url: window.location.origin,
-      icons: [],
-    },
-    });
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [SEPOLIA_ID],
+      rpcMap: {
+        [SEPOLIA_ID]: RPC_URL,
+      },
+      showQrModal: true,
+      methods: ["eth_requestAccounts", "eth_sendTransaction", "personal_sign"],
+      events: ["accountsChanged", "chainChanged", "disconnect"],
+      metadata: {
+        name: "Mini DEX Pulse",
+        description: "Simple on-chain swap dashboard",
+        url: window.location.origin,
+        icons: [],
+      },
+    }) as Promise<WalletConnectProvider>;
   }
 
   return wcInitPromise;

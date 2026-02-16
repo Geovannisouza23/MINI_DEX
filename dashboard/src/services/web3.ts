@@ -1,4 +1,4 @@
-import { BrowserProvider, formatUnits } from "ethers";
+import { BrowserProvider, FallbackProvider, JsonRpcProvider, formatUnits } from "ethers";
 
 type NetworkInfo = {
   chainId: number;
@@ -14,6 +14,56 @@ const NETWORKS: Record<number, NetworkInfo> = {
   42161: { chainId: 42161, name: "Arbitrum", symbol: "ETH" },
   11155111: { chainId: 11155111, name: "Sepolia", symbol: "ETH" },
 };
+
+const RPC_URLS = [
+  import.meta.env.VITE_ALCHEMY_RPC,
+  import.meta.env.VITE_INFURA_RPC,
+  import.meta.env.VITE_PUBLIC_RPC,
+].filter(Boolean);
+
+let readProvider: JsonRpcProvider | FallbackProvider | null = null;
+const cache = new Map<string, { expiresAt: number; value: unknown }>();
+const inflight = new Map<string, Promise<unknown>>();
+
+export function getReadProvider() {
+  if (readProvider) return readProvider;
+  if (!RPC_URLS.length) return null;
+
+  const providers = RPC_URLS.map((url) => new JsonRpcProvider(url));
+  readProvider = new FallbackProvider(providers);
+  return readProvider;
+}
+
+export async function cachedCall<T>(
+  key: string,
+  ttlMs: number,
+  loader: () => Promise<T>,
+): Promise<T> {
+  const now = Date.now();
+  const hit = cache.get(key);
+  if (hit && hit.expiresAt > now) {
+    return hit.value as T;
+  }
+
+  const existing = inflight.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const promise = loader()
+    .then((value) => {
+      cache.set(key, { expiresAt: now + ttlMs, value });
+      inflight.delete(key);
+      return value;
+    })
+    .catch((err) => {
+      inflight.delete(key);
+      throw err;
+    });
+
+  inflight.set(key, promise);
+  return promise as Promise<T>;
+}
 
 export function getNetworkInfo(chainId: number): NetworkInfo {
   return NETWORKS[chainId] ?? {

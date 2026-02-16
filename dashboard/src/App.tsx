@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { fetchLatestSwap, fetchSwaps } from "./api";
 import ConnectWallet from "./components/ConnectWallet";
-import SwapForm from "./components/SwapForm";
-import TokenBalances from "./components/TokenBalances";
 import type { SwapRow } from "./types";
+
+const SwapForm = lazy(() => import("./components/SwapForm"));
+const TokenBalances = lazy(() => import("./components/TokenBalances"));
 
 const short = (value: string, size = 4) =>
   `${value.slice(0, 2 + size)}...${value.slice(-size)}`;
@@ -28,6 +29,9 @@ export default function App() {
   useEffect(() => {
     let active = true;
     let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
+    let pollTimer: number | undefined;
+    let reconnectDelay = 1000;
 
     const load = async () => {
       try {
@@ -56,11 +60,24 @@ export default function App() {
       socket.onopen = () => {
         setStatus("live");
         setError(null);
+        reconnectDelay = 1000;
       };
 
       socket.onerror = () => {
         setStatus("error");
         setError("Live stream disconnected");
+      };
+
+       socket.onclose = () => {
+        if (!active) return;
+        setStatus("error");
+        setError("Live stream disconnected");
+        if (reconnectTimer) return;
+        reconnectTimer = window.setTimeout(() => {
+          reconnectTimer = undefined;
+          connectStream();
+        }, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 15000);
       };
 
       socket.onmessage = (event) => {
@@ -83,9 +100,17 @@ export default function App() {
 
     load();
     connectStream();
+    pollTimer = window.setInterval(() => {
+      if (!active) return;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        load();
+      }
+    }, 10000);
 
     return () => {
       active = false;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (pollTimer) window.clearInterval(pollTimer);
       socket?.close();
     };
   }, []);
@@ -115,10 +140,14 @@ export default function App() {
           <h2>Wallet</h2>
           <ConnectWallet />
           <div className="divider" />
-          <TokenBalances />
+          <Suspense fallback={<p className="muted">Loading balances...</p>}>
+            <TokenBalances />
+          </Suspense>
         </div>
         <div className="card highlight">
-          <SwapForm />
+          <Suspense fallback={<p className="muted">Loading swap form...</p>}>
+            <SwapForm />
+          </Suspense>
         </div>
       </section>
 

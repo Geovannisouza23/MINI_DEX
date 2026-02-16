@@ -1,6 +1,7 @@
 import { Contract, formatUnits } from "ethers";
 import { useEffect, useState } from "react";
 import { useWalletContext } from "../hooks/WalletProvider";
+import { cachedCall } from "../services/web3";
 import { ERC20_ABI, TOKEN_A, TOKEN_B } from "../web3/constants";
 
 function BalanceRow({
@@ -51,8 +52,8 @@ export default function TokenBalances() {
         const [a, b, decA, decB] = await Promise.all([
           tokenA.balanceOf(wallet.address),
           tokenB.balanceOf(wallet.address),
-          tokenA.decimals(),
-          tokenB.decimals(),
+          cachedCall(`token-decimals:${TOKEN_A}`, 300000, () => tokenA.decimals()),
+          cachedCall(`token-decimals:${TOKEN_B}`, 300000, () => tokenB.decimals()),
         ]);
         if (!active) return;
         setTokenABalance(a);

@@ -1,6 +1,7 @@
 import { Contract, formatUnits, parseUnits } from "ethers";
 import { useEffect, useMemo, useState } from "react";
 import { useWalletContext } from "../hooks/WalletProvider";
+import { cachedCall, getReadProvider } from "../services/web3";
 import { ERC20_ABI, POOL_ABI, POOL_ADDRESS, TOKEN_A, TOKEN_B } from "../web3/constants";
 
 const DIRECTION = {
@@ -22,6 +23,7 @@ export default function SwapForm() {
   const [amount, setAmount] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [preview, setPreview] = useState<bigint | undefined>();
+  const readProvider = useMemo(() => getReadProvider(), []);
 
   const amountParsed = useMemo(() => {
     if (!amount) return null;
@@ -38,21 +40,32 @@ export default function SwapForm() {
   useEffect(() => {
     let active = true;
 
+    let timer: number | undefined;
+
     const loadPreview = async () => {
-      if (!provider || !amountParsed || wallet.chainId !== 11155111) {
+      const rpcProvider = readProvider ?? provider;
+      if (!rpcProvider || !amountParsed) {
         setPreview(undefined);
         return;
       }
 
-      const pool = new Contract(POOL_ADDRESS, POOL_ABI, provider);
+      const pool = new Contract(POOL_ADDRESS, POOL_ABI, rpcProvider);
 
       try {
         if (direction === DIRECTION.A_TO_B) {
-          const quote = await pool.getPriceAtoB(amountParsed);
+          const quote = await cachedCall(
+            `price:A2B:${amountParsed.toString()}`,
+            5000,
+            () => pool.getPriceAtoB(amountParsed),
+          );
           if (!active) return;
           setPreview(quote);
         } else {
-          const [reserveA, reserveB] = await pool.getReserves();
+          const [reserveA, reserveB] = await cachedCall(
+            "reserves",
+            5000,
+            () => pool.getReserves(),
+          );
           if (!active) return;
           if (reserveB === 0n) {
             setPreview(0n);
@@ -66,12 +79,15 @@ export default function SwapForm() {
       }
     };
 
-    loadPreview();
+    timer = window.setTimeout(loadPreview, 350);
 
     return () => {
       active = false;
+      if (timer) {
+        window.clearTimeout(timer);
+      }
     };
-  }, [provider, amountParsed, direction, wallet.chainId]);
+  }, [provider, readProvider, amountParsed, direction]);
 
   useEffect(() => {
     if (error) {
