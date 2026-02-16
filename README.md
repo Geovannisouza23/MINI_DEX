@@ -466,9 +466,10 @@ This Mini DEX demonstrates a **complete Web3 exchange stack** with:
 The main latency source is **blockchain RPC**, not the microservice architecture.
 
 ---
-<img width="1323" height="642" alt="Captura de tela 2026-02-15 141647" src="https://github.com/user-attachments/assets/9a613146-673f-4433-bc98-27a6cf427d0d" />
+
 <img width="1306" height="675" alt="Captura de tela 2026-02-15 151231" src="https://github.com/user-attachments/assets/a0ca39ef-b0b1-4276-ba20-e6591b43f13f" />
 
+<img width="1347" height="746" alt="Captura de tela 2026-02-16 161734" src="https://github.com/user-attachments/assets/356fd5db-735f-469f-88b5-1e17ab9a1ee4" />
 
 # 📜 License
 
