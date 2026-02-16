@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLatestSwap, fetchSwaps } from "./api";
+import ConnectWallet from "./components/ConnectWallet";
+import SwapForm from "./components/SwapForm";
+import TokenBalances from "./components/TokenBalances";
 import type { SwapRow } from "./types";
 
 const short = (value: string, size = 4) =>
@@ -24,7 +27,7 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    let eventSource: EventSource | null = null;
+    let socket: WebSocket | null = null;
 
     const load = async () => {
       try {
@@ -47,22 +50,23 @@ export default function App() {
 
     const connectStream = () => {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3001";
-      eventSource = new EventSource(`${apiUrl}/swaps/stream`);
+      const wsUrl = apiUrl.replace(/^http/, "ws");
+      socket = new WebSocket(`${wsUrl}/swaps/ws`);
 
-      eventSource.onopen = () => {
+      socket.onopen = () => {
         setStatus("live");
         setError(null);
       };
 
-      eventSource.onerror = () => {
+      socket.onerror = () => {
         setStatus("error");
         setError("Live stream disconnected");
       };
 
-      eventSource.addEventListener("swap", (event) => {
+      socket.onmessage = (event) => {
         if (!active) return;
         try {
-          const payload = JSON.parse((event as MessageEvent).data) as SwapRow;
+          const payload = JSON.parse(event.data) as SwapRow;
           setLatest(payload);
           setSwaps((prev) => {
             const seen = new Set(prev.map((swap) => `${swap.tx_hash}-${swap.log_index}`));
@@ -74,7 +78,7 @@ export default function App() {
         } catch (err) {
           console.error(err);
         }
-      });
+      };
     };
 
     load();
@@ -82,7 +86,7 @@ export default function App() {
 
     return () => {
       active = false;
-      eventSource?.close();
+      socket?.close();
     };
   }, []);
 
@@ -105,6 +109,18 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <section className="grid">
+        <div className="card">
+          <h2>Wallet</h2>
+          <ConnectWallet />
+          <div className="divider" />
+          <TokenBalances />
+        </div>
+        <div className="card highlight">
+          <SwapForm />
+        </div>
+      </section>
 
       <section className="grid">
         <div className="card highlight">
